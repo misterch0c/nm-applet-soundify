@@ -1,0 +1,35 @@
+#!/usr/bin/python
+
+import os
+import stat
+import sys
+import subprocess
+
+# Save this file as /etc/NetworkManager/dispatcher.d/99sound
+# This is run as root, but mplayer should run as the user. Find the
+# proc folder of nm-applet and copy its environment. Also setuid to the
+# correct user so gnome-keyring accepts the connection
+for d in os.listdir('/proc'):
+    if not d.isdigit():
+        continue
+    d = os.path.join('/proc', d)
+    try:
+        exe = os.readlink(os.path.join(d, 'exe'))
+    except OSError:
+        continue
+    if exe == '/usr/bin/nm-applet':
+        uid = os.stat(d)[stat.ST_UID]
+        env = open(os.path.join(d, 'environ')).read()
+        env = dict([x.split('=', 1) for x in env.split('\x00') if x])
+        os.environ.update(env)
+        os.setuid(uid)
+        break
+else:
+    # Can't find nm-applet
+    sys.exit(0)
+
+# This is called from n-m as <script> <device> <action>
+if sys.argv[2] != 'up':
+    subprocess.call(['/usr/bin/aplay','/home/unknown/sounds/down.wav'])
+else:
+    subprocess.call(['/usr/bin/aplay','/home/unknown/sounds/dial.wav'])
